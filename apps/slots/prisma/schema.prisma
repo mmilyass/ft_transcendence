@@ -1,0 +1,119 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  USER
+  ADMIN
+  DOCTOR
+  PENDING_DOCTOR
+  REJECTED
+  BANNED
+}
+
+enum SlotsStatus {
+  AVAILABLE
+  UNAVAILABLE
+  BOOKED
+  CANCELLED
+  COMPLETED
+}
+
+model User {
+  id           String        @id
+  name         String
+  doctor       Doctor?
+  email        String        @unique()
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @default(now()) @updatedAt
+  role         Role          @default(USER)
+  verified     Boolean       @default(false)
+  slots        Slots[]
+  appointments Appointment[]
+}
+
+model Doctor {
+  id           String        @id
+  user_id      String        @unique()
+  user         User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  slots        Slots[]
+  services     Service[]
+  appointments Appointment[]
+}
+
+model Slots {
+  id            String      @id @default(uuid())
+  doctor_id     String
+  doctor        Doctor      @relation(fields: [doctor_id], references: [id])
+  user_id       String?
+  user          User?       @relation(fields: [user_id], references: [id])
+  service_id    String?
+  service       Service?    @relation(fields: [service_id], references: [id])
+  date          DateTime
+  start_time    String
+  end_time      String
+  is_booked     Boolean     @default(false)
+  status        SlotsStatus @default(AVAILABLE)
+  reminder_sent Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([doctor_id, date, start_time])
+}
+
+model Appointment {
+  id         String      @id @default(uuid())
+  user_id    String
+  doctor_id  String
+  service_id String
+  date       DateTime
+  start_time String
+  end_time   String
+  status     SlotsStatus @default(BOOKED)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  user    User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  doctor  Doctor  @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [service_id], references: [id], onDelete: Cascade)
+
+  @@unique([doctor_id, date, start_time])
+}
+
+model Service {
+  id          String   @id @default(uuid())
+  name        String
+  price       Float
+  duration    Int
+  category_id String
+  doctor_id   String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category     Category      @relation(fields: [category_id], references: [id])
+  doctor       Doctor        @relation(fields: [doctor_id], references: [id])
+  slots        Slots[]
+  appointments Appointment[]
+
+  @@unique([doctor_id, name])
+}
+
+model Category {
+  id        String    @id @default(uuid())
+  name      String
+  Service   Service[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}

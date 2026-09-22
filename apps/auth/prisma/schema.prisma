@@ -1,0 +1,204 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  USER
+  ADMIN
+  DOCTOR
+  PENDING_DOCTOR
+  REJECTED
+  BANNED
+}
+
+model User {
+  id       String  @id @default(uuid())
+  verified Boolean @default(false)
+  email    String  @unique()
+  name     String
+  password String  @default("")
+  role     Role    @default(USER)
+  phone    String  @default("")
+
+  doctor        Doctor?
+  auditlogs     Auditlog[]
+  notifications Notification[]
+  stats         UserStats?
+
+  hide_doctor_button Boolean @default(false)
+
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @default(now()) @updatedAt
+  image          String          @default("https://i.pinimg.com/736x/f7/82/c8/f782c8360e890a8d488eeda004b26bde.jpg")
+  doctorPatients DoctorPatient[]
+  reviews        Review[]
+
+  @@index([email, name])
+}
+
+model Doctor {
+  id String @id @default(uuid())
+
+  user_id String @unique()
+  user    User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  experience   Int      @default(0)
+  languages    String[]
+  rating       Float    @default(0)
+  reviewCount  Int      @default(0)
+  profileImage String   @default("")
+
+  speciality     String
+  bio            String
+  license_number String
+  score          Float  @default(0)
+
+  medical_license_url String
+  totalAppointments   Int    @default(0)
+  totalPatients       Int    @default(0)
+
+  verified Boolean  @default(false)
+  reviews  Review[]
+
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  doctorPatients DoctorPatient[]
+  location       DoctorLocation[]
+
+  @@index([user_id, speciality, verified])
+}
+
+model DoctorLocation {
+  id String @id @default(uuid())
+
+  doctor_id String
+  doctor    Doctor @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
+
+  address  String
+  city     String
+  state    String
+  zip_code String
+  country  String
+
+  latitude  Float @default(0)
+  longitude Float @default(0)
+
+  isPrimary Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DoctorPatient {
+  id String @id @default(uuid())
+
+  doctor_id  String
+  patient_id String
+
+  doctor  Doctor @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
+  patient User   @relation(fields: [patient_id], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([doctor_id, patient_id])
+  @@index([doctor_id, patient_id])
+}
+
+model Notification {
+  id String @id @default(uuid())
+
+  user_id String
+  user    User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  title   String
+  message String
+
+  isRead Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([user_id, isRead])
+}
+
+model Review {
+  id String @id @default(uuid())
+
+  doctorId String
+  user     User   @relation(fields: [userId], references: [id])
+
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  userId String
+
+  rating  Int
+  comment String?
+
+  createdAt DateTime @default(now())
+
+  @@index([doctorId, userId])
+}
+
+model Auditlog {
+  id String @id @default(uuid())
+
+  user_id String?
+  user    User?   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  action  String
+  details String?
+
+  timestamp DateTime @default(now())
+
+  @@index([user_id, action])
+}
+
+model UserStats {
+  id String @id @default(uuid())
+
+  user_id String @unique()
+  user    User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  Appointments          Int @default(0)
+  completedAppointments Int @default(0)
+  cancelledAppointments Int @default(0)
+  pendingAppointments   Int @default(0)
+  Reviews               Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([user_id])
+}
+
+model Stats {
+  id String @id @default(uuid())
+
+  TotalUsers          Int @default(0)
+  TotalDoctors        Int @default(0)
+  TotalAppointments   Int @default(0)
+  ActiveDoctors       Int @default(0)
+  PenddingAplications Int @default(0)
+
+  ServerUptime    Float @default(0)
+  activeSessions  Int   @default(0)
+  apiResponseTime Float @default(0)
+  totalrequests   Int   @default(0)
+
+  PendingDoctors Int   @default(0)
+  MonthlyGrowth  Float @default(0)
+  SystemHealth   Float @default(0)
+  ResponceTime   Float @default(0)
+
+  NewSubmissions Int   @default(0)
+  verifiedRate   Float @default(0)
+
+  @@index([TotalUsers, TotalDoctors, TotalAppointments])
+}

@@ -1,0 +1,34 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  cloud:
+    gateway:
+      server:
+        webmvc:
+          globalcors:
+            cors-configurations:
+              '[/**]':
+                allowedOriginPatterns:
+                  - "*"
+                allowedMethods:
+                  - GET
+                  - POST
+                  - PUT
+                  - PATCH
+                  - DELETE
+                  - OPTIONS
+                allowedHeaders:
+                  - "*"
+                allowCredentials: true
+
+          routes:
+            - id: auth-service
+              uri: ${AUTH_SERVICE_URI:http://localhost:8081}
+              predicates:
+                - Path=/auth/**,/users/**,/admin/**,/doctor/**,/notification/**,/review/**,/user-stats/**
+
+            - id: appointment-service
+              uri: ${APPOINTMENT_SERVICE_URI:http://localhost:8083}
+              predicates:
+                - Path=/slots/**,/categories/**,/services/**

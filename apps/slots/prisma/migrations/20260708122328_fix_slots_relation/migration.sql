@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "SlotsStatus" ADD VALUE 'UNAVAILABLE';

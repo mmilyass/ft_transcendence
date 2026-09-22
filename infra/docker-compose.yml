@@ -1,0 +1,134 @@
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    ports:
+      - "8000:80"
+      - "4430:443"
+    environment:
+      - HTTPS_REDIRECT_PORT=:4430
+    volumes:
+      - ../apps/nginx/nginx.conf:/etc/nginx/templates/default.conf.template:ro
+      - ../apps/nginx/certs:/etc/nginx/certs
+      - webroot:/var/www/html
+      - ../apps/nginx/entrypoint.sh:/entrypoint.sh:ro
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    networks: [app-net]
+    depends_on:
+      - api-gateway
+      - frontend
+
+  api-gateway:
+    build: ../apps/api-gateway
+    container_name: api-gateway
+    restart: always
+    env_file:
+      - path: ../apps/api-gateway/.env
+    networks: [app-net]
+    depends_on:
+      - auth
+      - notification
+      - slots
+
+  frontend:
+    build: ../apps/frontend
+    container_name: frontend
+    restart: always
+    env_file:
+      - path: ../apps/frontend/.env
+    networks: [app-net]
+    depends_on:
+      - api-gateway
+
+  auth:
+    build: ../apps/auth
+    container_name: auth
+    restart: always
+    env_file:
+      - path: ../apps/auth/.env
+    networks:
+      - app-net
+      - auth-net
+    depends_on:
+      - auth_db
+      - rabbitmq
+
+  auth_db:
+    image: postgres:15
+    container_name: auth_db
+    env_file: ../apps/auth/.db.env
+    restart: always
+    volumes:
+      - auth_db_volume:/var/lib/postgresql/data
+    networks: [auth-net]
+
+  notification:
+    build: ../apps/notification
+    container_name: notification
+    restart: always
+    env_file:
+      - path: ../apps/notification/.env
+    networks:
+      - app-net
+    depends_on:
+      - rabbitmq
+
+  slots:
+    build: ../apps/slots
+    container_name: slots
+    restart: always
+    env_file: ../apps/slots/.env
+    networks:
+      - app-net
+      - slots-net
+    depends_on:
+      - slots_db
+      - rabbitmq
+
+  slots_db:
+    image: postgres:15
+    container_name: slots_db
+    restart: always
+    env_file: ../apps/slots/.db.env
+    volumes:
+      - slots_db_volume:/var/lib/postgresql/data
+    networks: [slots-net]
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    container_name: rabbitmq
+    env_file: ./.rabbitmq.env
+    restart: always
+    networks: [app-net]
+  backup:
+    image: postgres:15
+    container_name: backup
+    restart: always
+    env_file: ./backup/.env
+    entrypoint: ["sh", "/app/backup.sh"]
+    volumes:
+      - ./backup:/app:ro
+      - backup_volume:/backups
+    networks:
+      - auth-net
+      - slots-net
+    depends_on:
+      - auth_db
+      - slots_db
+
+networks:
+  app-net:
+    driver: bridge
+  auth-net:
+    driver: bridge
+  slots-net:
+    driver: bridge
+
+volumes:
+  auth_db_volume:
+  slots_db_volume:
+  backup_volume:
+  webroot:
+  certbot-etc:
+  certbot-var:
+
